@@ -1,0 +1,7 @@
+COMBO_ENABLE = yes
+KEY_OVERRIDE_ENABLE = yes
+
+# Disable some stock features
+CONSOLE_ENABLE = no
+RGB_MATRIX_ENABLE = no
+ENCODER_ENABLE = no
