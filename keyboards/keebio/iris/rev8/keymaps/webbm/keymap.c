@@ -20,7 +20,7 @@ uint16_t COMBO_LEN = COMBO_LENGTH;
 
 #define TAB_CTL LCTL_T(KC_TAB)        /* Tap for tab, hold for control               */
 #define QUT_CTL RCTL_T(KC_QUOT)       /* Tap for quote, hold for control             */
-#define LWR_ENT LT(L_LOWER, KC_A)   /* Tap for enter, hold for L_LOWER             */
+#define LWR_ENT LT(L_LOWER, KC_A)     /* Tap for enter, hold for L_LOWER             */
 #define RAIS_BS LT(L_RAISE, KC_BSPC)  /* Tap for bksp, hold for L_RAISE              */
 #define ESC_NUM LT(L_NUMPAD, KC_ESC)  /* Tap for esc, hold for L_NUMPAD              */
 #define GNME_LF G(KC_PGUP)            /* (gnome) Move to prev workspace              */
@@ -107,11 +107,21 @@ bool get_hold_on_other_key_press(uint16_t keycode, keyrecord_t *record) {
      */
     switch (keycode) {
         case TAB_CTL:
-        case LWR_ENT:
         case RAIS_BS:
             return true;
+        case LWR_ENT:
+            return false;
         default:
             return false;
+    }
+}
+
+uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
+    switch (keycode) {
+        case LWR_ENT:  // LT(L_LOWER, KC_A)
+            return 230;   // give A/lower a bigger tap window
+        default:
+            return TAPPING_TERM;
     }
 }
 
