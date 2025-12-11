@@ -16,6 +16,10 @@ enum combos {
     COMBO_LENGTH,  /* Leave COMBO_LENGTH as last in enum */
 };
 
+enum custom_keycodes {
+    JJ_TOGG = SAFE_RANGE,  /* Toggle jj-to-escape feature */
+};
+
 uint16_t COMBO_LEN = COMBO_LENGTH;
 
 #define TAB_CTL LCTL_T(KC_TAB)        /* Tap for tab, hold for control               */
@@ -85,7 +89,7 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   //├────────┼────────┼────────┼────────┼────────┼────────┤                          ├────────┼────────┼────────┼────────┼────────┼────────┤
      _______, _______, _______, _______, _______, _______,                            _______, KC_7,    KC_8,    KC_9,    _______, _______,
   //├────────┼────────┼────────┼────────┼────────┼────────┤                          ├────────┼────────┼────────┼────────┼────────┼────────┤
-     _______, KC_PLUS, KC_MINS, KC_ASTR, KC_SLSH, _______,                            _______, KC_4,    KC_5,    KC_6,    _______, _______,
+     _______, KC_PLUS, KC_MINS, KC_ASTR, KC_SLSH, _______,                            JJ_TOGG, KC_4,    KC_5,    KC_6,    _______, _______,
   //├────────┼────────┼────────┼────────┼────────┼────────┼────────┐        ┌────────┼────────┼────────┼────────┼────────┼────────┼────────┤
      _______, _______, _______, _______, _______, _______, _______,          _______, _______, KC_1,    KC_2,    KC_3,    KC_0,    _______,
   //└────────┴────────┴────────┴───┬────┴───┬────┴───┬────┴───┬────┘        └───┬────┴───┬────┴───┬────┴───┬────┴────────┴────────┴────────┘
@@ -154,3 +158,40 @@ const key_override_t *key_overrides[] = {
     &dot_paren_override,        /* Use ./) instead of ./>  */
     &colon_semicolon_override,  /* Use :/; instead of ;/:  */
 };
+
+
+/* ---------------------------------- JJ to Escape ---------------------------------- */
+
+static uint16_t j_timer = 0;
+static bool awaiting_second_j = false;
+static bool jj_escape_enabled = false;  /* Off by default, toggle with JJ_TOGG */
+
+bool process_record_user(uint16_t keycode, keyrecord_t *record) {
+    switch (keycode) {
+        case JJ_TOGG:
+            if (record->event.pressed) {
+                jj_escape_enabled = !jj_escape_enabled;
+            }
+            return false;
+
+        case KC_J:
+            if (!jj_escape_enabled || !record->event.pressed) {
+                return true;
+            }
+            if (awaiting_second_j && timer_elapsed(j_timer) < TAPPING_TERM) {
+                tap_code(KC_BSPC);
+                tap_code(KC_ESC);
+                awaiting_second_j = false;
+                return false;
+            }
+            j_timer = timer_read();
+            awaiting_second_j = true;
+            return true;
+
+        default:
+            if (record->event.pressed) {
+                awaiting_second_j = false;
+            }
+            return true;
+    }
+}
