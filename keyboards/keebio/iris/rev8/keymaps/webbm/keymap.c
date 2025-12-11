@@ -20,9 +20,10 @@ uint16_t COMBO_LEN = COMBO_LENGTH;
 
 #define TAB_CTL LCTL_T(KC_TAB)        /* Tap for tab, hold for control               */
 #define QUT_CTL RCTL_T(KC_QUOT)       /* Tap for quote, hold for control             */
-#define LWR_ENT LT(L_LOWER, KC_A)     /* Tap for enter, hold for L_LOWER             */
 #define RAIS_BS LT(L_RAISE, KC_BSPC)  /* Tap for bksp, hold for L_RAISE              */
-#define ESC_NUM LT(L_NUMPAD, KC_ESC)  /* Tap for esc, hold for L_NUMPAD              */
+#define ENT_NUM LT(L_NUMPAD, KC_ENT)  /* Tap for enter, hold for L_NUMPAD              */
+#define ALT_LWR LT(L_LOWER, KC_LALT)  /* Tap for left alt, hold for L_LOWER          */
+#define ALT_RAS LT(L_RAISE, KC_RALT)  /* Tap for right alt, hold for L_RAISE         */
 #define GNME_LF G(KC_PGUP)            /* (gnome) Move to prev workspace              */
 #define GNME_RT G(KC_PGDN)            /* (gnome) Move to next workspace              */
 #define GNME_ML G(S(KC_PGUP))         /* (gnome) Move window to prev workspace       */
@@ -38,15 +39,15 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
   [L_QWERTY] = LAYOUT(
   //┌────────┬────────┬────────┬────────┬────────┬────────┐                          ┌────────┬────────┬────────┬────────┬────────┬────────┐
-     KC_LGUI, KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                               KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_RGUI,
+     KC_ESC,  KC_1,    KC_2,    KC_3,    KC_4,    KC_5,                               KC_6,    KC_7,    KC_8,    KC_9,    KC_0,    KC_BSPC,
   //├────────┼────────┼────────┼────────┼────────┼────────┤                          ├────────┼────────┼────────┼────────┼────────┼────────┤
      KC_LALT, KC_Q,    KC_W,    KC_E,    KC_R,    KC_T,                               KC_Y,    KC_U,    KC_I,    KC_O,    KC_P,    KC_RALT,
   //├────────┼────────┼────────┼────────┼────────┼────────┤                          ├────────┼────────┼────────┼────────┼────────┼────────┤
-     TAB_CTL, LWR_ENT, KC_S,    KC_D,    KC_F,    KC_G,                               KC_H,    KC_J,    KC_K,    KC_L,    KC_COLN, QUT_CTL,
+     TAB_CTL, KC_A,    KC_S,    KC_D,    KC_F,    KC_G,                               KC_H,    KC_J,    KC_K,    KC_L,    KC_COLN, QUT_CTL,
   //├────────┼────────┼────────┼────────┼────────┼────────┼────────┐        ┌────────┼────────┼────────┼────────┼────────┼────────┼────────┤
      KC_LSFT, KC_Z,    KC_X,    KC_C,    KC_V,    KC_B,    KC_VOLD,          KC_VOLU, KC_N,    KC_M,    KC_COMM, KC_DOT,  KC_SLSH, KC_RSFT,
   //└───────┴────────┴────────┴───┬────┴───┬────┴───┬────┴───┬────┘        └───┬────┴───┬────┴───┬────┴───┬────┴────────┴────────┴────────┘
-                                    ESC_NUM, KC_SPC, KC_LGUI,                   KC_RGUI,  RAIS_BS, KC_ENT
+                                    ALT_LWR, KC_SPC, KC_LGUI,                   KC_RGUI, ENT_NUM, ALT_RAS
   //                               └────────┴───────┴────────┘                 └────────┴──── ───┴────────┘
   ),
 
@@ -86,9 +87,9 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   //├────────┼────────┼────────┼────────┼────────┼────────┤                          ├────────┼────────┼────────┼────────┼────────┼────────┤
      _______, KC_PLUS, KC_MINS, KC_ASTR, KC_SLSH, _______,                            _______, KC_4,    KC_5,    KC_6,    _______, _______,
   //├────────┼────────┼────────┼────────┼────────┼────────┼────────┐        ┌────────┼────────┼────────┼────────┼────────┼────────┼────────┤
-     _______, _______, _______, _______, _______, _______, _______,          _______, _______, KC_1,    KC_2,    KC_3,    _______, _______,
+     _______, _______, _______, _______, _______, _______, _______,          _______, _______, KC_1,    KC_2,    KC_3,    KC_0,    _______,
   //└────────┴────────┴────────┴───┬────┴───┬────┴───┬────┴───┬────┘        └───┬────┴───┬────┴───┬────┴───┬────┴────────┴────────┴────────┘
-                                    _______, _______, _______,                   _______, KC_0,    _______
+                                    _______, _______, _______,                   _______, _______, _______
   //                               └────────┴────────┴────────┘                 └────────┴────────┴────────┘
   ),
 
@@ -109,22 +110,10 @@ bool get_hold_on_other_key_press(uint16_t keycode, keyrecord_t *record) {
         case TAB_CTL:
         case RAIS_BS:
             return true;
-        case LWR_ENT:
-            return false;
         default:
             return false;
     }
 }
-
-uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
-    switch (keycode) {
-        case LWR_ENT:  // LT(L_LOWER, KC_A)
-            return 230;   // give A/lower a bigger tap window
-        default:
-            return TAPPING_TERM;
-    }
-}
-
 
 /* ------------------------------------- Combos ------------------------------------ */
 
