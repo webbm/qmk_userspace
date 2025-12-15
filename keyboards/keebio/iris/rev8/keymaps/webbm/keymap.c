@@ -1,5 +1,9 @@
 #include QMK_KEYBOARD_H
 
+#ifdef SPLIT_KEYBOARD
+#    include "transactions.h"
+#endif
+
 
 /* ---------------------------- Declare Custom Keycodes ---------------------------- */
 
@@ -59,11 +63,11 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
   //┌────────┬────────┬────────┬────────┬────────┬────────┐                          ┌────────┬────────┬────────┬────────┬────────┬────────┐
      _______, _______, _______, _______, _______, _______,                            _______, _______, _______, _______, _______, _______,
   //├────────┼────────┼────────┼────────┼────────┼────────┤                          ├────────┼────────┼────────┼────────┼────────┼────────┤
-     _______, KC_F1,   KC_F2,   KC_F3,   KC_F4,   _______,                            _______, KC_MINS, KC_PLUS, KC_LBRC, KC_RBRC, _______,
+     _______, KC_F1,   KC_F2,   KC_F3,   KC_F4,   _______,                            KC_ASTR, KC_PLUS, KC_LBRC, KC_RBRC, KC_AMPR, _______,
   //├────────┼────────┼────────┼────────┼────────┼────────┤                          ├────────┼────────┼────────┼────────┼────────┼────────┤
-     _______, KC_F5,   KC_F6,   KC_F7,   KC_F8,   _______,                            _______, KC_UNDS, KC_EQL,  KC_LCBR, KC_RCBR, _______,
+     _______, KC_F5,   KC_F6,   KC_F7,   KC_F8,   _______,                            KC_EXLM, KC_EQL,  KC_LCBR, KC_RCBR, KC_PIPE, _______,
   //├────────┼────────┼────────┼────────┼────────┼────────┼────────┐        ┌────────┼────────┼────────┼────────┼────────┼────────┼────────┤
-     _______, KC_F9,   KC_F10,  KC_F11,  KC_F12,  _______, _______,          _______, _______, KC_PIPE, KC_LABK, KC_RABK, KC_BSLS, _______,
+     _______, KC_F9,   KC_F10,  KC_F11,  KC_F12,  _______, _______,          _______, KC_UNDS, KC_MINS, KC_LABK, KC_RABK, KC_BSLS, _______,
   //└────────┴────────┴────────┴───┬────┴───┬────┴───┬────┴───┬────┘        └───┬────┴───┬────┴───┬────┴───┬────┴────────┴────────┴────────┘
                                     _______, _______, _______,                   _______, KC_DEL,  _______
   //                               └────────┴────────┴────────┘                 └────────┴────────┴────────┘
@@ -166,11 +170,44 @@ static uint16_t j_timer = 0;
 static bool awaiting_second_j = false;
 static bool jj_escape_enabled = false;  /* Off by default, toggle with JJ_TOGG */
 
+#ifdef SPLIT_KEYBOARD
+static void jj_state_sync_slave(uint8_t initiator2target_buffer_size, const void *initiator2target_buffer, uint8_t target2initiator_buffer_size,
+                                void *target2initiator_buffer) {
+    (void)target2initiator_buffer_size;
+    (void)target2initiator_buffer;
+
+    if (initiator2target_buffer_size != sizeof(uint8_t)) {
+        return;
+    }
+
+    jj_escape_enabled = *((const uint8_t *)initiator2target_buffer);
+}
+#endif
+
+void keyboard_post_init_user(void) {
+#ifdef SPLIT_KEYBOARD
+    transaction_register_rpc(JJ_STATE_SYNC, jj_state_sync_slave);
+#endif
+
+#ifdef RGB_MATRIX_ENABLE
+    // Keep RGB off by default; the JJ indicator will override the J key when enabled.
+    rgb_matrix_enable_noeeprom();
+    rgb_matrix_mode_noeeprom(RGB_MATRIX_SOLID_COLOR);
+    rgb_matrix_sethsv_noeeprom(HSV_BLACK);
+#endif
+}
+
 bool process_record_user(uint16_t keycode, keyrecord_t *record) {
     switch (keycode) {
         case JJ_TOGG:
             if (record->event.pressed) {
                 jj_escape_enabled = !jj_escape_enabled;
+#ifdef SPLIT_KEYBOARD
+                if (is_keyboard_master()) {
+                    const uint8_t state = jj_escape_enabled;
+                    transaction_rpc_send(JJ_STATE_SYNC, sizeof(state), &state);
+                }
+#endif
             }
             return false;
 
@@ -195,3 +232,41 @@ bool process_record_user(uint16_t keycode, keyrecord_t *record) {
             return true;
     }
 }
+
+#ifdef RGB_MATRIX_ENABLE
+
+#    define JJ_LED_ROW 7
+#    define JJ_LED_COL 4
+#    define JJ_PULSE_PERIOD_MS 1000
+
+static uint8_t jj_pulse_brightness(void) {
+    const uint16_t period = JJ_PULSE_PERIOD_MS;
+    const uint16_t half   = period / 2;
+    const uint16_t phase  = timer_read() % period;
+
+    if (phase < half) {
+        return (uint8_t)(((uint32_t)phase * 255) / half);
+    }
+    return (uint8_t)(((uint32_t)(period - phase) * 255) / half);
+}
+
+bool rgb_matrix_indicators_advanced_user(uint8_t led_min, uint8_t led_max) {
+    if (!jj_escape_enabled) {
+        return true;
+    }
+
+    const uint8_t j_led = g_led_config.matrix_co[JJ_LED_ROW][JJ_LED_COL];
+    if (j_led < led_min || j_led >= led_max) {
+        return true;
+    }
+
+    hsv_t hsv = {HSV_RED};
+    hsv.v     = (uint8_t)(((uint16_t)jj_pulse_brightness() * RGB_MATRIX_MAXIMUM_BRIGHTNESS) / 255);
+
+    const rgb_t rgb = hsv_to_rgb(hsv);
+    rgb_matrix_set_color(j_led, rgb.r, rgb.g, rgb.b);
+
+    return true;
+}
+
+#endif
