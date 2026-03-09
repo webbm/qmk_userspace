@@ -125,8 +125,35 @@ const uint16_t PROGMEM keymaps[][MATRIX_ROWS][MATRIX_COLS] = {
 
 };
 
+// Treat thumb keys as exempt so home row mods can chord with them naturally.
+const char chordal_hold_layout[MATRIX_ROWS][MATRIX_COLS] PROGMEM = LAYOUT(
+    'L', 'L', 'L', 'L', 'L', 'L',    'R', 'R', 'R', 'R', 'R', 'R',
+    'L', 'L', 'L', 'L', 'L', 'L',    'R', 'R', 'R', 'R', 'R', 'R',
+    'L', 'L', 'L', 'L', 'L', 'L',    'R', 'R', 'R', 'R', 'R', 'R',
+    'L', 'L', 'L', 'L', 'L', 'L',    '*', '*', 'R', 'R', 'R', 'R', 'R', 'R',
+                   '*', '*', '*',    '*', '*', '*'
+);
+
 
 /* ------------------------------------ Get Hold ----------------------------------- */
+
+bool get_permissive_hold(uint16_t keycode, keyrecord_t *record) {
+    (void)record;
+
+    switch (keycode) {
+        case A_GUI:
+        case S_ALT:
+        case D_CTL:
+        case F_SFT:
+        case J_SFT:
+        case K_CTL:
+        case L_ALT:
+        case CLN_GUI:
+            return true;
+        default:
+            return false;
+    }
+}
 
 bool get_hold_on_other_key_press(uint16_t keycode, keyrecord_t *record) {
     /**
