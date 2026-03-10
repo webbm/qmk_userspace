@@ -164,16 +164,20 @@ bool get_hold_on_other_key_press(uint16_t keycode, keyrecord_t *record) {
      * keypress.
      */
     switch (keycode) {
-        /* Keep home row mods conservative to avoid accidental shortcuts while rolling. */
+        /*
+         * Keep home row mods conservative to avoid accidental shortcuts while
+         * rolling, except K_CTL which benefits from earlier hold resolution for
+         * frequent Ctrl+Space chords.
+         */
         case A_GUI:
         case S_ALT:
         case D_CTL:
         case F_SFT:
         case J_SFT:
-        case K_CTL:
         case L_ALT:
         case CLN_GUI:
             return false;
+        case K_CTL:
         case TAB_NUM:
         case RAIS_BS:
             return true;
