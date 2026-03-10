@@ -4,11 +4,13 @@
 // Timeout for mod taps, layer taps, etc
 #define TAPPING_TERM 250
 #define TAPPING_TERM_PER_KEY
+#define PERMISSIVE_HOLD_PER_KEY
 
 // Force fast consecutive tap-hold presses to resolve as taps (helps with home row mods while typing).
 #define FLOW_TAP_TERM 150
 
 // Specify get-hold config on a key-by-key basis
+#define CHORDAL_HOLD
 #define HOLD_ON_OTHER_KEY_PRESS_PER_KEY
 
 // Keep custom toggle state in sync across the split halves (for per-half RGB Matrix)
