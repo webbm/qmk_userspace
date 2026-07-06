@@ -30,7 +30,7 @@ uint16_t COMBO_LEN = COMBO_LENGTH;
 #define TAB_NUM LT(L_NUMPAD, KC_TAB)  /* Tap for tab, hold for L_NUMPAD              */
 #define QUT_FUN LT(L_FUN, KC_QUOT)    /* Tap for quote, hold for function layer      */
 #define RAIS_BS LT(L_RAISE, KC_BSPC)  /* Tap for bksp, hold for L_RAISE              */
-#define ALT_LWR LT(L_LOWER, KC_LALT)  /* Tap for left alt, hold for L_LOWER          */
+#define ALT_LWR MO(L_LOWER)           /* Hold for L_LOWER (tap does nothing)         */
 #define ALT_RAS LT(L_RAISE, KC_RALT)  /* Tap for right alt, hold for L_RAISE         */
 #define A_GUI LGUI_T(KC_A)            /* Home row mod: tap A, hold left GUI          */
 #define S_ALT LALT_T(KC_S)            /* Home row mod: tap S, hold left ALT          */
@@ -137,9 +137,30 @@ const char chordal_hold_layout[MATRIX_ROWS][MATRIX_COLS] PROGMEM = LAYOUT(
 
 /* ------------------------------------ Get Hold ----------------------------------- */
 
+// Per-key tap-hold customization for home row mods.
+// Strategy (drawn from precondition guide, Getreuer/pgetreuer recommendations,
+// Chordal Hold + Flow Tap core features, and urob "timeless" HRM ports):
+// - High base TAPPING_TERM (250ms) for safety on same-hand rolls (Chordal enforces tap).
+// - Shorter term on Shift (F/J) for responsive capitalization/CamelCase without
+//   feeling sluggish for deliberate holds.
+// - Home-row mods use conservative tap-hold decisions so ordinary typing wins,
+//   especially at word starts where Flow Tap has no preceding key to inspect.
+// - Flow Tap still removes HRM delay during fast continuous typing.
+// - QUICK_TAP_TERM global 0 for safety, but per-key exceptions for Vim hjkl
+//   navigation so that tap-then-hold on j/k/l produces rapid letter repeat
+//   (jjjj / kkkk cursor movement). h is plain (not a mod-tap) so it always worked.
+// See also: docs.qmk.fm/tap_hold , getreuer.info/posts/keyboards/faqs ,
+// precondition.github.io/home-row-mods , ZSA Chordal Hold blog.
+
 bool get_permissive_hold(uint16_t keycode, keyrecord_t *record) {
     (void)record;
 
+    /*
+     * Keep all eight home-row mods off permissive hold. Nested word-start rolls
+     * like "and" (A_GUI+n) and "find" (F_SFT+i) should resolve as letters, not
+     * shortcuts or capitalization. Intentional HRM chords still work after the
+     * tapping term; fast modifier chords can use the dedicated thumb/outer mods.
+     */
     switch (keycode) {
         case A_GUI:
         case S_ALT:
@@ -149,41 +170,127 @@ bool get_permissive_hold(uint16_t keycode, keyrecord_t *record) {
         case K_CTL:
         case L_ALT:
         case CLN_GUI:
-            return true;
+            return false;
         default:
             return false;
     }
 }
 
 bool get_hold_on_other_key_press(uint16_t keycode, keyrecord_t *record) {
-    /**
-     * Return false for a keycode as to *not* select the hold action on other
-     * keypress.
-     *
-     * Return true for a keycode as to immediately select the hold action on other
-     * keypress.
-     */
+    (void)record;
+
     switch (keycode) {
         /*
-         * Keep home row mods conservative to avoid accidental shortcuts while
-         * rolling, except K_CTL which benefits from earlier hold resolution for
-         * frequent Ctrl+Space chords.
+         * Do not let HRMs become holds merely because another key was pressed.
+         * This avoids word-start roll failures like "and" -> GUI+n and
+         * "find" -> Shift+i.
          */
         case A_GUI:
         case S_ALT:
         case D_CTL:
         case F_SFT:
         case J_SFT:
+        case K_CTL:
         case L_ALT:
         case CLN_GUI:
             return false;
-        case K_CTL:
+
+        /*
+         * Layer-taps are not home-row letter mods; keep them responsive.
+         */
         case TAB_NUM:
         case RAIS_BS:
             return true;
+
         default:
             return false;
     }
+}
+
+uint16_t get_tapping_term(uint16_t keycode, keyrecord_t *record) {
+    (void)record;
+
+    switch (keycode) {
+        // Shifts get a shorter term: snappier for intentional caps while still
+        // protected by Chordal (same hand) + Flow Tap (fast flow). Adjust offset
+        // or use absolute value during tuning. Use g_tapping_term for the base
+        // if you prefer the runtime global.
+        case F_SFT:
+        case J_SFT:
+            return TAPPING_TERM - 50;  // 200ms
+        default:
+            return TAPPING_TERM;
+    }
+}
+
+uint16_t get_quick_tap_term(uint16_t keycode, keyrecord_t *record) {
+    (void)record;
+
+    switch (keycode) {
+        // Vim navigation special case (right-hand home row):
+        //   h = plain KC_H (always repeats normally)
+        //   j = J_SFT (RSFT_T), k = K_CTL (RCTL_T), l = L_ALT (RALT_T)
+        // User needs to be able to tap-then-hold (or rapidly double-press+hold)
+        // these to get quick repeated cursor movement: jjjj, kkkk, etc.
+        // Returning a positive value (here the normal TAPPING_TERM window)
+        // allows the tap action to repeat on a subsequent quick hold of the *same*
+        // dual-role key.
+        //
+        // For the other HRMs (A/S/D/F GUI/ALT/CTL and the : GUI), we return the
+        // global 0. This keeps the safety property: after you tap the letter,
+        // a quick hold of the key will activate the modifier rather than spamming
+        // the letter or interfering with intended mod usage.
+        //
+        // This is a very common pattern for Vim + HRM users.
+        case J_SFT:
+        case K_CTL:
+        case L_ALT:
+            return TAPPING_TERM;
+        default:
+            return QUICK_TAP_TERM;  // 0 for everything else
+    }
+}
+
+// Optional explicit is_flow_tap_key if you want to customize the set of keys
+// that participate in flow-tap protection (letters, space, common punct by
+// default in QMK). Defining it alongside get_flow_tap_term is supported; the
+// get_ version takes precedence for the term decision.
+bool is_flow_tap_key(uint16_t keycode) {
+    // Strip mod-tap / layer-tap to get the tap keycode for classification.
+    switch (keycode) {
+        case QK_MOD_TAP ... QK_MOD_TAP_MAX:
+            keycode = QK_MOD_TAP_GET_TAP_KEYCODE(keycode);
+            break;
+        case QK_LAYER_TAP ... QK_LAYER_TAP_MAX:
+            keycode = QK_LAYER_TAP_GET_TAP_KEYCODE(keycode);
+            break;
+    }
+    switch (keycode) {
+        case KC_SPC:
+        case KC_A ... KC_Z:
+        case KC_DOT:
+        case KC_COMM:
+        case KC_SCLN:
+        case KC_SLSH:
+        case KC_COLN:  // our right GUI tap key
+            return true;
+    }
+    return false;
+}
+
+uint16_t get_flow_tap_term(uint16_t keycode, keyrecord_t *record, uint16_t prev_keycode) {
+    (void)record;
+
+    // Note: Previously shifts returned 0 here (exempt from flow protection).
+    // Removed that special case so that F_SFT/J_SFT also benefit from flow-tap
+    // forcing tap during rapid typing. This directly targets cross-hand rolls
+    // like "fo" that were producing unwanted shifts. Snappiness for deliberate
+    // shift comes from the shorter get_tapping_term + permissive/hold-on-other
+    // paths + Chordal for opposite-hand.
+    if (is_flow_tap_key(keycode) && is_flow_tap_key(prev_keycode)) {
+        return FLOW_TAP_TERM;
+    }
+    return 0;
 }
 
 /* ------------------------------------- Combos ------------------------------------ */
